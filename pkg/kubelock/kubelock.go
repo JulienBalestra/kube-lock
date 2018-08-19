@@ -12,8 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"encoding/json"
 	"github.com/JulienBalestra/kube-lock/pkg/semaphore"
 	"github.com/JulienBalestra/kube-lock/pkg/utils/kubeclient"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 )
 
 const (
@@ -101,6 +104,13 @@ func (l *KubeLock) getSemaphore(cm *corev1.ConfigMap) (*semaphore.Semaphore, err
 }
 
 func (l *KubeLock) updateSemaphore(cm *corev1.ConfigMap, sema *semaphore.Semaphore) error {
+	oriB, err := json.Marshal(cm)
+	if err != nil {
+		glog.Errorf("Fail to marshal original configmap: %v")
+		return err
+	}
+	glog.V(0).Infof("%v", string(oriB))
+
 	str, err := sema.MarshalToString()
 	if err != nil {
 		glog.Errorf("Unexpected error while marshaling semaphore: %v", err)
@@ -110,9 +120,19 @@ func (l *KubeLock) updateSemaphore(cm *corev1.ConfigMap, sema *semaphore.Semapho
 		cm.Annotations = make(map[string]string)
 	}
 	cm.Annotations[kubeLockAnnotation] = str
-	_, err = l.kubeClient.GetKubernetesClient().CoreV1().ConfigMaps(l.conf.Namespace).Update(cm)
+	modB, err := json.Marshal(cm)
 	if err != nil {
-		glog.Errorf("Fail to update cm/%s in ns %s: %v", l.conf.ConfigmapName, l.conf.Namespace, err)
+		glog.Errorf("Fail to marshal new configmap: %v")
+		return err
+	}
+	patch, err := strategicpatch.CreateTwoWayMergePatch(oriB, modB, corev1.ConfigMap{})
+	if err != nil {
+		glog.Errorf("Fail to create patch: %v", err)
+		return err
+	}
+	_, err = l.kubeClient.GetKubernetesClient().CoreV1().ConfigMaps(l.conf.Namespace).Patch(cm.Name, types.StrategicMergePatchType, patch)
+	if err != nil {
+		glog.Errorf("Fail to patch cm/%s in ns %s: %v", l.conf.ConfigmapName, l.conf.Namespace, err)
 		return err
 	}
 	return nil

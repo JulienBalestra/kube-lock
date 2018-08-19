@@ -1,6 +1,7 @@
 Component,Origin,License
 core,"github.com/frapposelli/wwhrd",MIT
 core,"github.com/cpuguy83/go-md2man/md2man",MIT
+core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/fsnotify/fsnotify",NewBSD
 core,"github.com/ghodss/yaml",MIT
 core,"github.com/gogo/protobuf/proto",NewBSD
@@ -120,15 +121,18 @@ core,"k8s.io/apimachinery/pkg/util/errors",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/framer",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/intstr",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/json",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/mergepatch",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/net",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/runtime",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/sets",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/strategicpatch",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/validation",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/validation/field",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/wait",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/yaml",Apache-2.0
 core,"k8s.io/apimachinery/pkg/version",Apache-2.0
 core,"k8s.io/apimachinery/pkg/watch",Apache-2.0
+core,"k8s.io/apimachinery/third_party/forked/golang/json",Apache-2.0
 core,"k8s.io/apimachinery/third_party/forked/golang/reflect",Apache-2.0
 core,"k8s.io/client-go/discovery",Apache-2.0
 core,"k8s.io/client-go/kubernetes",Apache-2.0
@@ -179,3 +183,4 @@ core,"k8s.io/client-go/util/cert",Apache-2.0
 core,"k8s.io/client-go/util/flowcontrol",Apache-2.0
 core,"k8s.io/client-go/util/homedir",Apache-2.0
 core,"k8s.io/client-go/util/integer",Apache-2.0
+core,"k8s.io/kube-openapi/pkg/util/proto",Apache-2.0
