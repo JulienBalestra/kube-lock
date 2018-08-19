@@ -1,0 +1,107 @@
+version: 2
+
+templates:
+  job_template: &job_template
+    docker:
+      - image: golang:1.10
+    working_directory: /go/src/github.com/JulienBalestra/kube-lock
+
+  machine_job_template: &machine_job_template
+    machine: true
+    working_directory: /home/circleci/.go_workspace/src/github.com/JulienBalestra/kube-lock
+    environment:
+      DEBIAN_FRONTEND: "noninteractive"
+      CFLAGS: ""
+      CGO_ENABLED: "1"
+
+jobs:
+  make:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: make
+          command: make
+
+  tests:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: tests
+          command: make check
+
+  gofmt:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: verify-gofmt
+          command: make verify-gofmt
+
+  docs:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: verify-docs
+          command: make verify-docs
+
+  license:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: verify-license
+          command: make verify-license
+
+  misc:
+    <<: *job_template
+    steps:
+      - checkout
+      - run:
+          name: goget
+          command: make goget
+      - run:
+          name: verify ineffassign golint misspell
+          command: make -j verify-misc
+
+  e2e:
+    <<: *machine_job_template
+    steps:
+      - checkout
+      - run:
+          name: docker-image
+          # Override the master tag by the current branch, in the store.
+          # TODO: use the image built by quay for this branch
+          command: sudo docker build -t quay.io/julienbalestra/kube-lock:master .
+      - run:
+          name: make
+          command: make kube-lock-docker
+      - run:
+          name: download
+          command: sudo curl -Lf https://github.com/DataDog/pupernetes/releases/download/v0.7.0/pupernetes -o /usr/local/bin/pupernetes && sudo chmod +x /usr/local/bin/pupernetes
+      - run:
+          name: apt
+          command: sudo apt-get update -qq && sudo apt-get install -yqq systemd
+      - run:
+          name: run
+          command: sudo /usr/local/bin/pupernetes daemon run sandbox/ --job-type systemd --kubectl-link /usr/local/bin/kubectl --kubeconfig-path $HOME/.kube/config
+      - run:
+          name: e2e
+          command: make ci-e2e
+
+workflows:
+  version: 2
+  tests:
+    jobs:
+      - make
+      - tests
+      - gofmt
+      - docs
+      - license
+      - misc
+      - e2e:
+          requires:
+            - make
+            - tests
