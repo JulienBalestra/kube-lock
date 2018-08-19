@@ -41,7 +41,7 @@ kubectl get cm lock -n default -o json | jq -r '.metadata.annotations["kube-lock
 Then lock with `holder-2`:
 ```bash
 ./kube-lock ${NAMESPACE} ${CONFIGMAP_NAME} \
-    --holder-name holder-2 --create-configmap --max-holders 2 \
+    --holder-name holder-2 \
     --polling-interval 10s --polling-timeout 25s \
     --reason "db restart" \
     --kubeconfig-path ${HOME}/.kube/config
