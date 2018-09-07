@@ -1,6 +1,7 @@
 package kubelock
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -11,12 +12,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"encoding/json"
-	"github.com/JulienBalestra/kube-lock/pkg/semaphore"
-	"github.com/JulienBalestra/kube-lock/pkg/utils/kubeclient"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+
+	"github.com/JulienBalestra/kube-lock/pkg/kubeclient"
+	"github.com/JulienBalestra/kube-lock/pkg/semaphore"
 )
 
 const (
@@ -32,6 +32,7 @@ type Config struct {
 	PollingInterval time.Duration
 	PollingTimeout  time.Duration
 	CreateConfigmap bool
+	KubeConfigPath  string
 }
 
 // KubeLock state
@@ -43,8 +44,8 @@ type KubeLock struct {
 }
 
 // NewKubeLock instantiate a new KubeLock
-func NewKubeLock(kubeConfigPath string, conf *Config) (*KubeLock, error) {
-	if conf.PollingInterval == 0 {
+func NewKubeLock(conf *Config) (*KubeLock, error) {
+	if conf.PollingInterval <= 0 {
 		err := fmt.Errorf("invalid value for PollingInterval: %s", conf.PollingInterval.String())
 		glog.Errorf("Cannot use the provided config: %v", err)
 		return nil, err
@@ -70,7 +71,7 @@ func NewKubeLock(kubeConfigPath string, conf *Config) (*KubeLock, error) {
 		return nil, err
 	}
 	glog.V(1).Infof("Create cm/%s in ns %s if missing: %v", conf.ConfigmapName, conf.Namespace, conf.CreateConfigmap)
-	k, err := kubeclient.NewKubeClient(kubeConfigPath)
+	k, err := kubeclient.NewKubeClient(conf.KubeConfigPath)
 	if err != nil {
 		return nil, err
 	}
@@ -90,15 +91,15 @@ func (l *KubeLock) getSemaphore(cm *corev1.ConfigMap) (*semaphore.Semaphore, err
 	glog.V(1).Infof("Successfully get cm/%s in ns %s", l.conf.ConfigmapName, l.conf.Namespace)
 	sema := semaphore.NewSemaphore(l.conf.MaxHolders)
 	currentAnnotation, ok := cm.Annotations[kubeLockAnnotation]
-	if ok {
-		glog.V(1).Infof("Current semaphore in cm/%s in ns %s is %s", l.conf.ConfigmapName, l.conf.Namespace, currentAnnotation)
-		err := sema.UnmarshalFromString(currentAnnotation)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	if !ok {
 		glog.V(0).Infof("Empty s in cm/%s in ns %s", l.conf.ConfigmapName, l.conf.Namespace)
 		sema.Max = l.conf.MaxHolders
+		return sema, nil
+	}
+	glog.V(1).Infof("Current semaphore in cm/%s in ns %s is %s", l.conf.ConfigmapName, l.conf.Namespace, currentAnnotation)
+	err := sema.UnmarshalFromString(currentAnnotation)
+	if err != nil {
+		return nil, err
 	}
 	return sema, nil
 }
@@ -205,11 +206,10 @@ func (l *KubeLock) Lock(reason string) error {
 	defer ticker.Stop()
 
 	timeout := time.NewTimer(l.conf.PollingTimeout)
+	defer timeout.Stop()
 	if l.conf.PollingTimeout == 0 {
 		glog.V(0).Infof("No timeout specified")
 		timeout.Stop()
-	} else {
-		defer timeout.Stop()
 	}
 
 	sigCh := make(chan os.Signal)

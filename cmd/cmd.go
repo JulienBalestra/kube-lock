@@ -130,6 +130,7 @@ func newLock(namespace, configmapName string) (*kubelock.KubeLock, error) {
 		PollingInterval: viperConfig.GetDuration("polling-interval"),
 		PollingTimeout:  viperConfig.GetDuration("polling-timeout"),
 		CreateConfigmap: viperConfig.GetBool("create-configmap"),
+		KubeConfigPath:  viperConfig.GetString("kubeconfig-path"),
 	}
-	return kubelock.NewKubeLock(viperConfig.GetString("kubeconfig-path"), conf)
+	return kubelock.NewKubeLock(conf)
 }
